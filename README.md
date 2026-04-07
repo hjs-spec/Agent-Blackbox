@@ -17,7 +17,7 @@ When your Multi-Agent system breaks down, it usually goes like this:
 - Agent C says: "I just passed data, not my problem"
 - **You**: Digging through thousands of log lines, finding nothing
 
-**Agent Blame-Finder** solves this.
+**Agent-Blackbox** solves this.
 
 It installs a **"Black Box"** in every Agent that automatically records:
 - Who made the decision
