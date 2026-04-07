@@ -10,7 +10,7 @@
 
 **Please DO NOT report security vulnerabilities through public GitHub issues.**
 
-Instead, send an email to **security@agent-blame-finder.org**.
+Instead, send an email to **signal@humanjudgment.org**.
 
 You should receive a response within 48 hours.
 
