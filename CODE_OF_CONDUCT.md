@@ -23,8 +23,3 @@ Project maintainers have the right to remove, edit, or reject comments, commits,
 ## Reporting
 
 If you experience unacceptable behavior, please report it to the project team at **signal@humanjudgment.org**.
-
-## Attribution
-
-This Code of Conduct is adapted from the [Contributor Covenant][homepage].
-
