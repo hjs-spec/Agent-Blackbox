@@ -1,0 +1,40 @@
+name: 'Agent-Blackbox Blame Finder'
+description: 'Find which agent messed up in 3 seconds — JEP/JAC cryptographic blackbox'
+author: 'HJS Foundation'
+
+branding:
+  icon: 'search'
+  color: 'black'
+
+inputs:
+  incident_id:
+    description: 'Incident ID to blame'
+    required: true
+  storage_path:
+    description: 'Path to blackbox logs'
+    required: false
+    default: './blackbox_logs'
+
+outputs:
+  blame_result:
+    description: 'Blame analysis result (JSON)'
+  responsible_agent:
+    description: 'The agent responsible for the failure'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    - name: Install Agent-Blackbox
+      run: pip install agent-blackbox
+      shell: bash
+    - name: Run blame analysis
+      id: blame
+      run: |
+        result=$(blame-finder blame ${{ inputs.incident_id }} --json)
+        echo "blame_result=$result" >> $GITHUB_OUTPUT
+        echo "responsible_agent=$(echo $result | jq -r '.responsible')" >> $GITHUB_OUTPUT
+      shell: bash
