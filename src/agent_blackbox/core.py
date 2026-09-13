@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import functools
+import inspect
+import asyncio
+from threading import RLock
 import json
 import time
 import uuid
@@ -59,6 +62,7 @@ class AgentBlackbox:
         self.storage.mkdir(parents=True, exist_ok=True)
         self.audience = audience
 
+        self._lock = RLock()
         self._keys: Dict[str, ed25519.Ed25519PrivateKey] = {}
         self.events: Dict[str, JEPEvent] = {}
         self.traces: Dict[str, TraceRecord] = {}
@@ -71,9 +75,10 @@ class AgentBlackbox:
         return self.events
 
     def _get_agent_private_key(self, agent_name: str) -> ed25519.Ed25519PrivateKey:
-        if agent_name not in self._keys:
-            self._keys[agent_name] = ed25519.Ed25519PrivateKey.generate()
-        return self._keys[agent_name]
+        with self._lock:
+            if agent_name not in self._keys:
+                self._keys[agent_name] = ed25519.Ed25519PrivateKey.generate()
+            return self._keys[agent_name]
 
     def _get_agent_public_key(self, agent_name: str):
         return self._get_agent_private_key(agent_name).public_key()
@@ -95,7 +100,49 @@ class AgentBlackbox:
         if parent_event_hash is None and parent_task_hash is not None:
             parent_event_hash = parent_task_hash
 
+        if verb != Verb.JUDGMENT:
+            raise ValueError("trace records judgments; construct explicit D/T/V events with their required fields")
+
         def decorator(func: Callable) -> Callable:
+            @functools.wraps(func)
+            async def async_wrapper(*args, **kwargs):
+                started = int(time.time())
+                input_digest = digest_value({"args": args, "kwargs": kwargs})
+                output_digest = None
+                error_digest = None
+                status = "success"
+                result = None
+                error_obj = None
+
+                try:
+                    result = await func(*args, **kwargs)
+                    output_digest = digest_value(result)
+                    return result
+                except BaseException as exc:
+                    status = "cancelled" if isinstance(exc, asyncio.CancelledError) else "failed"
+                    error_obj = {"type": exc.__class__.__name__, "message": str(exc)}
+                    error_digest = digest_value(error_obj)
+                    raise
+                finally:
+                    finished = int(time.time())
+                    event = self._make_event(
+                        agent_name=agent_name,
+                        verb=verb,
+                        status=status,
+                        started_at=started,
+                        finished_at=finished,
+                        parent_event_hash=parent_event_hash,
+                        relation=relation,
+                        input_digest=input_digest,
+                        output_digest=output_digest,
+                        error_digest=error_digest,
+                        error=error_obj,
+                    )
+                    self._store_event(event, agent_name, status, started, finished, parent_event_hash, input_digest, output_digest, error_digest)
+
+            if inspect.iscoroutinefunction(func):
+                return async_wrapper
+
             @functools.wraps(func)
             def wrapper(*args, **kwargs):
                 started = int(time.time())
@@ -110,8 +157,8 @@ class AgentBlackbox:
                     result = func(*args, **kwargs)
                     output_digest = digest_value(result)
                     return result
-                except Exception as exc:
-                    status = "failed"
+                except BaseException as exc:
+                    status = "cancelled" if isinstance(exc, asyncio.CancelledError) else "failed"
                     error_obj = {"type": exc.__class__.__name__, "message": str(exc)}
                     error_digest = digest_value(error_obj)
                     raise
@@ -184,7 +231,7 @@ class AgentBlackbox:
             aud=self.audience,
             ref=parent_event_hash,
             ext=ext,
-            ext_crit=[JAC_CHAIN_EXT],
+            ext_crit=[],
         )
         event.sign(self._get_agent_private_key(agent_name), kid=f"{agent_name}#local")
         return event
@@ -201,26 +248,27 @@ class AgentBlackbox:
         output_digest: Optional[str],
         error_digest: Optional[str],
     ) -> str:
-        event_hash = event.event_hash()
-        self.events[event_hash] = event
-        record = TraceRecord(
-            event_hash=event_hash,
-            agent_name=agent_name,
-            status=status,
-            started_at=started_at,
-            finished_at=finished_at,
-            parent_event_hash=parent_event_hash,
-            input_digest=input_digest,
-            output_digest=output_digest,
-            error_digest=error_digest,
-            event=event.to_dict(),
-        )
-        self.traces[event_hash] = record
+        with self._lock:
+            event_hash = event.event_hash()
+            self.events[event_hash] = event
+            record = TraceRecord(
+                event_hash=event_hash,
+                agent_name=agent_name,
+                status=status,
+                started_at=started_at,
+                finished_at=finished_at,
+                parent_event_hash=parent_event_hash,
+                input_digest=input_digest,
+                output_digest=output_digest,
+                error_digest=error_digest,
+                event=event.to_dict(),
+            )
+            self.traces[event_hash] = record
 
-        with self.log_path.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(asdict(record), ensure_ascii=False) + "\n")
+            with self.log_path.open("a", encoding="utf-8") as f:
+                f.write(json.dumps(asdict(record), ensure_ascii=False) + "\n")
 
-        return event_hash
+            return event_hash
 
     def review_incident(self, incident_hash: str) -> Dict[str, Any]:
         """Review an incident and reconstruct declared chain context.
@@ -325,7 +373,8 @@ class AgentBlackbox:
         event = self.events.get(event_hash)
         if not event:
             return False
-        return event.verify(self._get_agent_public_key(event.who))
+        key = self._keys.get(event.who)
+        return key is not None and event.event_hash() == event_hash and event.verify(key.public_key())
 
     # Backward-compatible alias.
     def verify_receipt(self, receipt_hash: str) -> bool:

@@ -222,3 +222,7 @@ Status: experimental implementation seed
 ## License
 
 MIT
+
+## Runtime and verification notes
+
+See [HARDENING.md](HARDENING.md) for supported behavior, regression checks, and compatibility boundaries.
