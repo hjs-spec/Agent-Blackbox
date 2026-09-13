@@ -3,8 +3,8 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "agent-blackbox"
-version = "0.2.0a1"
+name = "agent-blackbox-jep"
+version = "0.2.0a2"
 description = "Experimental JEP/HJS/JAC runtime blackbox recorder for agent workflow incident review"
 readme = "README.md"
 license = { text = "MIT" }

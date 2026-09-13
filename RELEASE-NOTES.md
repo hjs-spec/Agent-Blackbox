@@ -1,5 +1,9 @@
-# Release 0.2.0a1
+# Release 0.2.0a2
 
-Includes the reviewed September 2026 integrity, replay, persistence, async-lifecycle and compatibility repairs applicable to this repository. Wire/profile versions are unchanged unless explicitly described in the repository hardening notes.
+Publish the distribution as `agent-blackbox-jep`, matching the owner's configured PyPI trusted publisher. The previous `agent-blackbox` distribution name is unavailable on PyPI.
 
-See HARDENING.md for supported verification scopes and migration boundaries. Registry publication and service deployment are reported by their workflows; a source merge alone is not a published package.
+- Update package metadata, installation instructions, and the composite Action's pinned package installation.
+- Preserve Python imports (`agent_blackbox`), command names (`agent-blackbox`, `blame-finder`), event audiences, stored trace formats, and runtime behavior.
+- Retain the existing GitHub release `v0.2.0a1`; this release creates new versioned artifacts instead of replacing it.
+
+Includes the previously reviewed integrity, replay, persistence and compatibility repairs. See HARDENING.md for verification scopes and migration boundaries.
