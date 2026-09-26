@@ -62,12 +62,12 @@ def test_detached_signature_requires_protected_kid():
 
 def test_large_jcs_number_roundtrip_does_not_break_signature():
     key = Ed25519PrivateKey.generate()
-    event = JEPEvent(Verb.JUDGMENT, 'actor', 1, {'value':1e20})
+    event = JEPEvent(Verb.JUDGMENT, 'actor', 1, {'value':1e20,'shortest':1.0000000000000001e18,'negative':-1.0000000000000001e18})
     event.sign(key)
-    raw = json.dumps(event.to_dict()).replace('1e+20', '100000000000000000000')
+    raw = json.dumps(event.to_dict()).replace('1e+20', '100000000000000000000').replace('1.0000000000000001e+18', '1000000000000000100')
     imported = JEPEvent.from_dict(json.loads(raw))
     assert imported.verify(key.public_key())
     assert imported.event_hash() == event.event_hash()
-    for value in (2**53 + 1, 10**400):
+    for value in (2**53 + 1, 1000000000000000101, 10**400):
         with pytest.raises(ValueError):
             canonicalize({'value':value})
