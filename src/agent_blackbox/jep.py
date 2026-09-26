@@ -1,4 +1,4 @@
-"""JEP v0.6-style event objects for Agent Blackbox."""
+"""JEP Core 0.7 event objects for Agent Blackbox with explicit legacy preservation."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ import base64
 import hashlib
 import json
 import re
+import uuid
 from copy import deepcopy
 import rfc8785
 from nacl.signing import VerifyKey
@@ -19,7 +20,7 @@ from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric import ed25519
 
 JEP_WIRE_VERSION = "1"
-JEP_CORE_PROFILE = "jep-core-0.6"
+JEP_CORE_PROFILE = "jep-core-0.7"
 JAC_CHAIN_EXT = "https://jac.org/chain"
 HJS_EVIDENCE_EXT = "https://hjs.org/evidence-refs"
 
@@ -78,29 +79,35 @@ def digest_value(value: Any) -> str:
 
 @dataclass
 class JEPEvent:
-    """JEP v0.6-style event used by Agent Blackbox.
+    """JEP Core 0.7-style event used by Agent Blackbox.
 
-    This is an implementation seed object, not a full replacement for the
-    normative JEP-Core specification.
+    Fresh events use stable Event Identity (who,id) and do not add a Core
+    nonce. Imported historical events preserve their original signed members.
     """
 
     verb: Verb
     who: str
     when: int
     what: Any
-    nonce: str
-    aud: str = "agent-blackbox"
-    ref: Optional[str] = None
+    id: Optional[str] = None
+    aud: Optional[str] = "agent-blackbox"
+    ref: Optional[Any] = None
     ext: Dict[str, Any] = field(default_factory=dict)
     ext_crit: List[str] = field(default_factory=list)
     sig: Optional[str] = None
+    nonce: Optional[str] = None  # historical pre-0.7 member; never added to fresh events
     _wire: Optional[Dict[str, Any]] = field(default=None, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        if self._wire is None and self.id is None:
+            self.id = f"urn:uuid:{uuid.uuid4()}"
 
     def unsigned_dict(self) -> Dict[str, Any]:
         if self._wire is not None:
             data = deepcopy(self._wire)
             data.pop("sig", None)
             for name in (
+                "id",
                 "verb",
                 "who",
                 "when",
@@ -111,22 +118,25 @@ class JEPEvent:
                 "ext",
                 "ext_crit",
             ):
+                if name not in data:
+                    continue
                 value = getattr(self, name)
                 if isinstance(value, Verb):
                     value = value.value
-                if name in data or value is not None:
-                    data[name] = deepcopy(value)
+                data[name] = deepcopy(value)
             return data
         data = {
             "jep": JEP_WIRE_VERSION,
+            "id": self.id,
             "verb": self.verb.value,
             "who": self.who,
             "when": self.when,
             "what": self.what,
-            "nonce": self.nonce,
-            "aud": self.aud,
-            "ref": self.ref,
         }
+        if self.aud is not None:
+            data["aud"] = self.aud
+        if self.ref is not None:
+            data["ref"] = deepcopy(self.ref)
         if self.ext:
             data["ext"] = self.ext
         if self.ext_crit:
@@ -145,12 +155,13 @@ class JEPEvent:
             who=data["who"],
             when=data["when"],
             what=deepcopy(data.get("what")),
-            nonce=data["nonce"],
+            id=data.get("id"),
             aud=data.get("aud"),
             ref=data.get("ref"),
             ext=deepcopy(data.get("ext")),
             ext_crit=deepcopy(data.get("ext_crit")),
             sig=data.get("sig"),
+            nonce=data.get("nonce"),
             _wire=deepcopy(data),
         )
 
