@@ -204,6 +204,8 @@ class JEPEvent:
             if (
                 not isinstance(header, dict)
                 or header.get("alg") != "Ed25519"
+                or not isinstance(header.get("kid"), str)
+                or not header["kid"]
                 or "crit" in header
                 or header.get("b64", True) is not True
             ):

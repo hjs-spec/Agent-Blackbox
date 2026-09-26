@@ -43,3 +43,18 @@ def test_async_trace_waits_for_result_and_records_cancellation(tmp_path):
     async def cancel(): raise asyncio.CancelledError()
     with pytest.raises(asyncio.CancelledError): asyncio.run(cancel())
     assert list(box.traces.values())[-1].status == "cancelled"
+
+
+def test_detached_signature_requires_protected_kid():
+    import json
+    from agent_blackbox.jep import JEPEvent, Verb, b64u, b64u_decode, canonicalize
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+    key = Ed25519PrivateKey.generate()
+    event = JEPEvent(Verb.JUDGMENT, 'did:example:test', 1, {'claim': 'x'})
+    event.sign(key)
+    header = json.loads(b64u_decode(event.sig.split('.')[0]))
+    header.pop('kid')
+    protected = b64u(canonicalize(header))
+    payload = b64u(canonicalize(event.unsigned_dict()))
+    event.sig = f'{protected}..{b64u(key.sign(f"{protected}.{payload}".encode()))}'
+    assert not event.verify(key.public_key())
