@@ -58,3 +58,16 @@ def test_detached_signature_requires_protected_kid():
     payload = b64u(canonicalize(event.unsigned_dict()))
     event.sig = f'{protected}..{b64u(key.sign(f"{protected}.{payload}".encode()))}'
     assert not event.verify(key.public_key())
+
+
+def test_large_jcs_number_roundtrip_does_not_break_signature():
+    key = Ed25519PrivateKey.generate()
+    event = JEPEvent(Verb.JUDGMENT, 'actor', 1, {'value':1e20})
+    event.sign(key)
+    raw = json.dumps(event.to_dict()).replace('1e+20', '100000000000000000000')
+    imported = JEPEvent.from_dict(json.loads(raw))
+    assert imported.verify(key.public_key())
+    assert imported.event_hash() == event.event_hash()
+    for value in (2**53 + 1, 10**400):
+        with pytest.raises(ValueError):
+            canonicalize({'value':value})

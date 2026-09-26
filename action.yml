@@ -29,7 +29,7 @@ runs:
       with:
         python-version: "3.11"
     - name: Install Agent Blackbox
-      run: pip install agent-blackbox-jep==0.3.0a1
+      run: pip install agent-blackbox-jep==0.3.0a2
       shell: bash
     - name: Run incident review
       id: review

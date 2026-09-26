@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import math
 import re
 import uuid
 from copy import deepcopy
@@ -51,8 +52,30 @@ def b64u_decode(data: str) -> bytes:
     return raw
 
 
+def _binary64_numbers(value):
+    """Adapt exactly representable Python integers to the JCS binary64 domain.
+
+    JSON.stringify(1e20) emits an integer token. Parsing that token into a
+    Python int must not invalidate the same JCS number or silently round a
+    genuinely higher-precision integer. This returns a copy, never edits input.
+    """
+    if type(value) is int and abs(value) > 2**53 - 1:
+        try:
+            number = float(value)
+            if not math.isfinite(number) or int(number) != value:
+                raise ValueError("Integer cannot be represented exactly as binary64")
+        except OverflowError as exc:
+            raise ValueError("Integer exceeds binary64 range") from exc
+        return number
+    if isinstance(value, dict):
+        return {key: _binary64_numbers(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_binary64_numbers(item) for item in value]
+    return value
+
+
 def canonicalize(obj: Any) -> bytes:
-    return rfc8785.dumps(obj)
+    return rfc8785.dumps(_binary64_numbers(obj))
 
 
 def _unique_object(pairs):
