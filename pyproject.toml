@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agent-blackbox-jep"
-version = "0.3.0a2"
+version = "0.3.0a3"
 description = "Experimental JEP Core 0.7 blackbox recorder with companion JAC/HJS metadata"
 readme = "README.md"
 license = { text = "MIT" }
