@@ -13,11 +13,12 @@ def test_jep_event_sign_and_verify():
         who="test-agent",
         when=1234567890,
         what={"claim": "decision"},
-        nonce="nonce-1",
     )
     key = finder._get_agent_private_key("test-agent")
     event.sign(key)
     assert event.verify(key.public_key()) is True
+    assert event.id.startswith("urn:uuid:")
+    assert "nonce" not in event.to_dict()
     assert event.event_hash().startswith("sha256:")
 
 
@@ -64,7 +65,7 @@ def test_parent_task_hash_maps_to_jac_ext(tmp_path):
     child()
     event_hash = list(box.events.keys())[0]
     event = box.events[event_hash]
-    assert event.ref == parent
+    assert event.ref == parent  # parent is external/unresolved here, so exact-artifact reference is retained
     assert event.ext[JAC_CHAIN_EXT]["based_on"] == parent
     assert "task_based_on" not in event.to_dict()
 
