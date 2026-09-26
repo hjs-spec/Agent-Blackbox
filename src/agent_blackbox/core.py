@@ -8,7 +8,6 @@ import asyncio
 from threading import RLock
 import json
 import time
-import uuid
 from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
@@ -222,14 +221,26 @@ class AgentBlackbox:
             ),
         }
 
+        ref = None
+        if parent_event_hash:
+            parent = self.events.get(parent_event_hash)
+            if parent is not None and parent.id:
+                ref = {
+                    "type": "jep:event",
+                    "value": {"who": parent.who, "id": parent.id},
+                    "hash": parent_event_hash,
+                }
+            else:
+                # Exact-artifact-only reference when logical identity is unavailable.
+                ref = parent_event_hash
+
         event = JEPEvent(
             verb=verb,
             who=agent_name,
             when=finished_at,
             what=what,
-            nonce=str(uuid.uuid4()),
             aud=self.audience,
-            ref=parent_event_hash,
+            ref=ref,
             ext=ext,
             ext_crit=[],
         )
