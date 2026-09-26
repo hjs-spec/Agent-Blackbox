@@ -98,7 +98,7 @@ Historical pre-0.7 imported events preserve their original signed members, inclu
 Install the published distribution:
 
 ```bash
-pip install agent-blackbox-jep==0.2.0a2
+pip install agent-blackbox-jep==0.3.0a1
 ```
 
 The PyPI distribution is named `agent-blackbox-jep` because `agent-blackbox` is unavailable on PyPI. Python imports remain `agent_blackbox`, and the CLI commands remain `agent-blackbox` and `blame-finder`.
@@ -232,7 +232,7 @@ It does not prove the underlying claim is true.
 ## Status
 
 ```text
-Version: 0.2.0a2
+Version: 0.3.0a1
 Status: experimental implementation seed
 ```
 

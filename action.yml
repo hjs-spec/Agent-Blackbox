@@ -29,12 +29,15 @@ runs:
       with:
         python-version: "3.11"
     - name: Install Agent Blackbox
-      run: pip install agent-blackbox-jep==0.2.0a2
+      run: pip install agent-blackbox-jep==0.3.0a1
       shell: bash
     - name: Run incident review
       id: review
+      env:
+        BLACKBOX_STORAGE: ${{ inputs.storage_path }}
+        BLACKBOX_EVENT_HASH: ${{ inputs.event_hash }}
       run: |
-        agent-blackbox --storage "${{ inputs.storage_path }}" review "${{ inputs.event_hash }}" > /tmp/agent-blackbox-review.json
+        agent-blackbox --storage "$BLACKBOX_STORAGE" review "$BLACKBOX_EVENT_HASH" > /tmp/agent-blackbox-review.json
         node=$(python -c 'import json; print(json.load(open("/tmp/agent-blackbox-review.json")).get("candidate_failure_node", ""))')
         {
           echo "review_result<<EOF"
