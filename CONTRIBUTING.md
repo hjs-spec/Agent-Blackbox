@@ -1,57 +1,20 @@
-# Contributing to Agent Blame-Finder
+# Contributing to Agent Blackbox
 
-Thanks for your interest! We welcome all contributions.
+## Develop
 
-## 📦 Development Setup
-
-```bash
-# Clone the repo
-git clone https://github.com/hjs-spec/agent-blame-finder.git
-cd agent-blame-finder
-
-# Python development
-pip install -e ".[dev]"
-
-# Rust core development
-cd core && cargo build
+```sh
+git clone https://github.com/hjs-spec/Agent-Blackbox.git
+cd Agent-Blackbox
+python -m venv .venv
+. .venv/bin/activate
+python -m pip install -e '.[dev]'
+python -m pytest tests -q
 ```
 
-## 🧪 Running Tests
+This repository contains the Python `agent_blackbox` package; no Rust build is required. Distribution name: `agent-blackbox-jep`. Commands: `agent-blackbox` and the compatibility alias `blame-finder`.
 
-```bash
-# Python tests
-pytest tests/
+## Pull requests
 
-# Rust tests
-cd core && cargo test
-```
+Keep one focused change per PR, add regression coverage for changed behavior, update affected documentation, and sign off commits with `git commit -s`. Preserve existing signed archives and explicit historical readers.
 
-## 📝 Pull Request Guidelines
-
-1. **One feature per PR** — Keep changes focused
-2. **Add tests** — For bug fixes or new features
-3. **Update docs** — If changing user-facing behavior
-4. **Sign your commits** — `git commit -s`
-
-## 🐛 Reporting Bugs
-
-Open an issue with:
-- Steps to reproduce
-- Expected vs actual behavior
-- Environment (OS, Python version, etc.)
-
-## 💡 Feature Requests
-
-Open an issue describing:
-- The problem you're solving
-- How it should work
-- Any alternatives considered
-
-## 📄 Code of Conduct
-
-Be respectful. We're here to build something useful, not to argue.
-
----
-
-Thanks for helping make Agent Blame-Finder better! 🚀
-```
+Report bugs with reproduction steps, expected/actual behavior and Python version. Be respectful when reviewing contributions.

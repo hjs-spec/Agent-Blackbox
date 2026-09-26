@@ -59,7 +59,7 @@ Aligned with:
 
 - JEP Core 0.7: https://github.com/hjs-spec/jep-core
 - JEP API: https://github.com/hjs-spec/jep-api
-- HJS v0.5: https://github.com/hjs-spec/hjs-05
+- HJS archive/evidence companion: https://datatracker.ietf.org/doc/draft-wang-hjs-accountability/
 - JAC v0.5: https://github.com/hjs-spec/jac-agent-02
 
 Public drafts:
