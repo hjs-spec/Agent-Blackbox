@@ -24,7 +24,7 @@ def test_import_preserves_signed_member_presence_and_mutation_is_rejected():
 
 
 def test_identity_key_forgery_rejected():
-    event = JEPEvent(Verb.JUDGMENT, "a", 1, {"claim":"test"}, str(uuid.uuid4()))
+    event = JEPEvent(verb=Verb.JUDGMENT, who="a", when=1, what={"claim":"test"})
     event.sig = b64u(canonicalize({"alg":"Ed25519"})) + ".." + b64u(bytes([1]) + bytes(63))
     assert not event.verify(Ed25519PublicKey.from_public_bytes(bytes([1]) + bytes(31)))
 
