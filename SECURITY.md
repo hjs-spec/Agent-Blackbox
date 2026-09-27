@@ -4,8 +4,10 @@
 
 | Version | Supported |
 |---|---|
-| 0.2.x alpha | ✅ |
-| 0.1.x | Historical |
+| 0.3.0 alpha line (current Core 0.7 recorder) | Current security fixes |
+| 0.2.x and earlier | Historical compatibility only |
+
+The package remains an experimental prerelease. See [release notes](RELEASE-NOTES.md) for the current patch. Historical signed records must retain their original format and explicitly selected reader; a version change does not upgrade those records.
 
 ## Reporting a Vulnerability
 
