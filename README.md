@@ -9,43 +9,6 @@ Runtime blackbox recorder for agent workflows using **JEP events**, **HJS eviden
 
 ---
 
-## What This Is
-
-Agent Blackbox records structured execution traces for agent workflows.
-
-For each traced operation it can record:
-
-- who executed the operation;
-- when it happened;
-- input/output/error digests;
-- a JEP Core 0.7-style event;
-- a JAC v0.5-style dependency edge;
-- optional HJS-style evidence references;
-- a local JSONL blackbox log;
-- an incident review report.
-
-It is designed to help operators answer:
-
-```text
-What happened?
-Which event failed?
-Which prior event was this based on?
-Which declared dependency path led here?
-Which evidence references are available for review?
-```
-
-It is **not** designed to answer:
-
-```text
-Who is legally liable?
-Who is morally at fault?
-Was the system compliant?
-Was the model correct?
-Was the log complete?
-```
-
----
-
 ## Relationship to JEP / HJS / JAC
 
 ```text
@@ -101,7 +64,8 @@ Install the published distribution:
 pip install --pre agent-blackbox-jep
 ```
 
-The PyPI distribution is named `agent-blackbox-jep` because `agent-blackbox` is unavailable on PyPI. Python imports remain `agent_blackbox`, and the CLI commands remain `agent-blackbox` and `blame-finder`.
+The distribution is `agent-blackbox-jep`, the Python import is `agent_blackbox`,
+and the CLI commands are `agent-blackbox` and `blame-finder`.
 
 For local development:
 
@@ -212,31 +176,10 @@ agent-blackbox verify sha256:...
 
 ## Boundary Statement
 
-A valid Agent Blackbox trace means a local runtime event was recorded and structurally linked.
-
-It does not prove:
-
-- legal liability;
-- factual causality;
-- regulatory compliance;
-- complete-log availability;
-- model correctness;
-- moral responsibility.
-
-A valid signature proves integrity of the event under the local key used by this library.
-
-It does not prove the underlying claim is true.
-
----
-
-## Status
-
-```text
-Version: see [current releases](https://github.com/hjs-spec/Agent-Blackbox/releases) (alpha).
-Status: experimental implementation seed
-```
-
----
+Verification checks event integrity under the recorder's local key and the recorded
+links. It does not establish factual causality, legal responsibility or log
+completeness. See the [current alpha releases](https://github.com/hjs-spec/Agent-Blackbox/releases)
+for the packaged implementation.
 
 ## License
 
