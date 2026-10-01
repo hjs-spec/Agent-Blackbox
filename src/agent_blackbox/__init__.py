@@ -1,4 +1,4 @@
-"""Agent Blackbox: JEP/HJS/JAC runtime trace recorder."""
+"""Record signed JEP events and inspect declared incident links."""
 
 from .core import AgentBlackbox, TraceRecord, IncidentReview
 from .jep import JEPEvent, Verb, JAC_CHAIN_EXT
