@@ -1,6 +1,6 @@
 # Notice
 
-Agent Blackbox is an experimental JEP/HJS/JAC runtime trace recorder.
+Agent Blackbox is an alpha recorder for signed events, evidence digests and incident review.
 
 It supports incident review and declared chain reconstruction.
 

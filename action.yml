@@ -1,5 +1,5 @@
 name: "Agent Blackbox Incident Review"
-description: "Review Agent Blackbox JEP/HJS/JAC trace artifacts"
+description: "Review signed event records and declared links from Agent Blackbox logs"
 author: "HJS Spec"
 
 branding:
@@ -29,7 +29,7 @@ runs:
       with:
         python-version: "3.11"
     - name: Install Agent Blackbox
-      run: pip install agent-blackbox-jep==0.3.0a3
+      run: pip install agent-blackbox-jep==0.3.0a4
       shell: bash
     - name: Run incident review
       id: review

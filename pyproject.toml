@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agent-blackbox-jep"
-version = "0.3.0a3"
-description = "Experimental JEP Core 0.7 blackbox recorder with companion JAC/HJS metadata"
+version = "0.3.0a4"
+description = "Alpha recorder for signed JEP events, evidence digests and incident review"
 readme = "README.md"
 license = { text = "MIT" }
 authors = [
