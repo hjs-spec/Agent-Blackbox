@@ -23,6 +23,7 @@ classifiers = [
 ]
 requires-python = ">=3.9"
 dependencies = [
+    "filelock>=3.13,<4",
     "PyNaCl>=1.6.2,<2",
     "cryptography>=41.0.0",
     "rfc8785>=0.1.4,<1",
