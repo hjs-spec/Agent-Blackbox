@@ -1,6 +1,6 @@
 # Agent Blackbox
 
-Alpha recorder for agent workflows. Wrap a function, store signed event records
+Python reference recorder for the Judgment Event Protocol (JEP). Wrap a function, store signed event records
 with evidence digests and declared links, then inspect an incident or verify
 local record integrity.
 
@@ -27,7 +27,8 @@ pip install --pre agent-blackbox-jep
 The distribution is `agent-blackbox-jep`, the Python import is `agent_blackbox`,
 and the CLI commands are `agent-blackbox` and `blame-finder`.
 
-For local development:
+For restart-safe recording and the Action described below, install from this
+checkout. The published 0.3.0a4 wheel predates those changes.
 
 ```bash
 pip install -e .
@@ -54,6 +55,7 @@ report = blackbox.review_incident(event_hash)
 
 print(report["candidate_failure_node"])
 print(report["chain"])
+print(event_hash)  # Save this identifier for a later CLI session.
 ```
 
 ---
@@ -68,6 +70,7 @@ Example:
   "candidate_failure_node": "CoderAgent",
   "diagnostic_summary": "The selected event has status failed. Review declared parents and evidence references.",
   "review_score": 0.72,
+  "score_basis": "selected_event_failed",
   "chain": [
     {
       "event_hash": "sha256:...",
@@ -88,29 +91,70 @@ Example:
 }
 ```
 
+The recorder assigns a fixed review score using the first matching rule below.
+The Python compatibility method `blame()` calls this same value `confidence`.
+These values express a review convention and have no statistical calibration.
+
+| Observed in the journal | `score_basis` | Score |
+|---|---|---|
+| Requested event is absent | `event_not_found` | 0.00 |
+| Requested event has status `failed` | `selected_event_failed` | 0.72 |
+| A declared ancestor has status `failed` | `declared_ancestor_failed` | 0.62 |
+| Observed chain contains no event with status `failed` | `no_observed_failure` | 0.25 |
+
 ---
 
 ## CLI
 
-Review an incident:
+After the recorder process exits, use its printed event hash and the same
+storage directory in a new shell.
 
 ```bash
-agent-blackbox review sha256:...
+agent-blackbox --storage ./blackbox_logs review "$EVENT_HASH"
 ```
 
 Show a chain tree:
 
 ```bash
-agent-blackbox tree sha256:...
+agent-blackbox --storage ./blackbox_logs tree "$EVENT_HASH"
 ```
 
 Verify an event:
 
 ```bash
-agent-blackbox verify sha256:...
+agent-blackbox --storage ./blackbox_logs verify "$EVENT_HASH"
 ```
 
----
+The CLI verifies every event returned by `review` or `tree`. A signed record
+of a failed task can be reviewed successfully. All commands write JSON to
+stdout and place diagnostics on stderr when verification cannot finish.
+
+| Exit code | `verification_status` | Meaning |
+|---|---|---|
+| 0 | `verified` | All requested records verified |
+| 3 | `not_found` | Requested event or a required declared ancestor is missing |
+| 4 | `unknown_key` | No trusted public key for this actor and key ID |
+| 5 | `invalid_record` | Unreadable record, inconsistent hash or metadata, or invalid signature/key |
+| 6 | `storage_error` | Journal or key storage could not be accessed |
+
+## GitHub Action
+
+Make the journal available on the runner and provision the recorder's public
+keys from a trusted source. Supply the event hash produced by your recording step.
+
+```yaml
+- uses: hjs-spec/Agent-Blackbox@main
+  id: review
+  with:
+    event_hash: ${{ steps.record.outputs.event_hash }}
+    storage_path: ./blackbox_logs
+    trusted_keys_path: ./trusted-recorder-keys
+```
+
+Pin the action to the reviewed commit for reproducible runs. On success,
+`steps.review.outputs.review_result` contains JSON and
+`steps.review.outputs.candidate_failure_node` names the candidate. Missing
+records, unknown keys and failed verification fail the step.
 
 ## Boundary Statement
 

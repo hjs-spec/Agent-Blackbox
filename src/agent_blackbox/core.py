@@ -13,12 +13,14 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 from cryptography.hazmat.primitives.asymmetric import ed25519
+from .store import InvalidJournal, Journal, PublicKeys
 
 from .jep import (
     HJS_EVIDENCE_EXT,
     JAC_CHAIN_EXT,
     JEPEvent,
     Verb,
+    b64u_decode,
     digest_value,
     make_hjs_evidence_refs,
     make_jac_chain_ext,
@@ -47,6 +49,7 @@ class IncidentReview:
     review_score: float
     chain: List[Dict[str, Any]]
     boundary: Dict[str, bool]
+    score_basis: str = "unspecified"
 
 
 class AgentBlackbox:
@@ -56,17 +59,37 @@ class AgentBlackbox:
     incident review, but it does not make legal or factual determinations.
     """
 
-    def __init__(self, storage: str = "./blackbox_logs", audience: str = "agent-blackbox"):
+    def __init__(self, storage: str = "./blackbox_logs", audience: str = "agent-blackbox",
+                 *, trusted_keys: Optional[str] = None):
         self.storage = Path(storage)
         self.storage.mkdir(parents=True, exist_ok=True)
         self.audience = audience
 
         self._lock = RLock()
         self._keys: Dict[str, ed25519.Ed25519PrivateKey] = {}
+        self._key_ids: Dict[str, str] = {}
+        self.public_keys = PublicKeys(Path(trusted_keys) if trusted_keys else self.storage / "trusted-keys")
         self.events: Dict[str, JEPEvent] = {}
         self.traces: Dict[str, TraceRecord] = {}
 
         self.log_path = self.storage / "events.jsonl"
+        self._journal = Journal(self.log_path)
+        for number, data in self._journal.records():
+            try:
+                record = TraceRecord(**data)
+                event = JEPEvent.from_dict(record.event)
+                if record.event_hash != event.event_hash():
+                    raise ValueError("stored hash differs from event hash")
+                # Review uses these fields. Require agreement with the signed body.
+                if (record.agent_name != event.who or record.finished_at != event.when
+                        or record.parent_event_hash != event.ext[JAC_CHAIN_EXT]["based_on"]
+                        or any(getattr(record, field) != event.what[field]
+                               for field in ("status", "input_digest", "output_digest", "error_digest"))):
+                    raise ValueError("trace metadata differs from event")
+            except (TypeError, ValueError, AttributeError, KeyError) as exc:
+                raise InvalidJournal(f"Invalid trace record on line {number}: {exc}") from exc
+            self.events[record.event_hash] = event
+            self.traces[record.event_hash] = record
 
     # Backward-compatible alias.
     @property
@@ -76,7 +99,9 @@ class AgentBlackbox:
     def _get_agent_private_key(self, agent_name: str) -> ed25519.Ed25519PrivateKey:
         with self._lock:
             if agent_name not in self._keys:
-                self._keys[agent_name] = ed25519.Ed25519PrivateKey.generate()
+                key = ed25519.Ed25519PrivateKey.generate()
+                self._key_ids[agent_name] = self.public_keys.register(agent_name, key.public_key())
+                self._keys[agent_name] = key
             return self._keys[agent_name]
 
     def _get_agent_public_key(self, agent_name: str):
@@ -244,7 +269,8 @@ class AgentBlackbox:
             ext=ext,
             ext_crit=[],
         )
-        event.sign(self._get_agent_private_key(agent_name), kid=f"{agent_name}#local")
+        key = self._get_agent_private_key(agent_name)
+        event.sign(key, kid=self._key_ids[agent_name])
         return event
 
     def _store_event(
@@ -261,7 +287,6 @@ class AgentBlackbox:
     ) -> str:
         with self._lock:
             event_hash = event.event_hash()
-            self.events[event_hash] = event
             record = TraceRecord(
                 event_hash=event_hash,
                 agent_name=agent_name,
@@ -274,10 +299,9 @@ class AgentBlackbox:
                 error_digest=error_digest,
                 event=event.to_dict(),
             )
+            self._journal.append(asdict(record))
+            self.events[event_hash] = event
             self.traces[event_hash] = record
-
-            with self.log_path.open("a", encoding="utf-8") as f:
-                f.write(json.dumps(asdict(record), ensure_ascii=False) + "\n")
 
             return event_hash
 
@@ -294,6 +318,7 @@ class AgentBlackbox:
                 "candidate_failure_node": "not_found",
                 "diagnostic_summary": "No event found for the supplied incident hash.",
                 "review_score": 0.0,
+                "score_basis": "event_not_found",
                 "chain": [],
                 "boundary": self._boundary(),
             }
@@ -305,16 +330,19 @@ class AgentBlackbox:
             candidate = incident.agent_name
             summary = "The selected event has status failed. Review declared parents and evidence references."
             score = 0.72
+            basis = "selected_event_failed"
         else:
             failed = [node for node in chain if node.get("status") == "failed"]
             if failed:
                 candidate = failed[-1]["agent"]
                 summary = "A failed event appears in the declared chain. Review surrounding evidence."
                 score = 0.62
+                basis = "declared_ancestor_failed"
             else:
                 candidate = "undetermined"
                 summary = "No failed event was found in the observed declared chain."
                 score = 0.25
+                basis = "no_observed_failure"
 
         return asdict(IncidentReview(
             incident=incident_hash,
@@ -323,6 +351,7 @@ class AgentBlackbox:
             review_score=score,
             chain=chain,
             boundary=self._boundary(),
+            score_basis=basis,
         ))
 
     # Backward-compatible alias.
@@ -333,6 +362,7 @@ class AgentBlackbox:
             "verdict": review["candidate_failure_node"],
             "reason": review["diagnostic_summary"],
             "confidence": review["review_score"],
+            "score_basis": review["score_basis"],
             "chain": review["chain"],
             "boundary": review["boundary"],
         }
@@ -380,12 +410,26 @@ class AgentBlackbox:
             "children": children,
         }
 
-    def verify_event(self, event_hash: str) -> bool:
+    def verification_status(self, event_hash: str) -> str:
         event = self.events.get(event_hash)
-        if not event:
-            return False
-        key = self._keys.get(event.who)
-        return key is not None and event.event_hash() == event_hash and event.verify(key.public_key())
+        if event is None:
+            return "not_found"
+        try:
+            if event.event_hash() != event_hash:
+                return "invalid_record"
+            header = json.loads(b64u_decode(event.sig.split(".")[0]))
+            kid = header["kid"]
+            if not isinstance(kid, str) or not kid:
+                return "invalid_record"
+            key = self.public_keys.lookup(event.who, kid)
+            if key is None:
+                return "unknown_key"
+            return "verified" if event.verify(key) else "invalid_record"
+        except (AttributeError, ValueError, KeyError, TypeError):
+            return "invalid_record"
+
+    def verify_event(self, event_hash: str) -> bool:
+        return self.verification_status(event_hash) == "verified"
 
     # Backward-compatible alias.
     def verify_receipt(self, receipt_hash: str) -> bool:
