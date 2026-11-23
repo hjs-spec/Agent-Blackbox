@@ -21,14 +21,14 @@ local record integrity.
 Install the published distribution:
 
 ```bash
-pip install --pre agent-blackbox-jep
+python -m pip install "agent-blackbox-jep==0.3.0a5"
 ```
 
 The distribution is `agent-blackbox-jep`, the Python import is `agent_blackbox`,
 and the CLI commands are `agent-blackbox` and `blame-finder`.
 
-For restart-safe recording and the Action described below, install from this
-checkout. The published 0.3.0a4 wheel predates those changes.
+Version 0.3.0a5 can reopen a saved journal and verify signatures with the
+recorder's saved public keys. To develop from a local checkout, run
 
 ```bash
 pip install -e .
@@ -143,7 +143,7 @@ Make the journal available on the runner and provision the recorder's public
 keys from a trusted source. Supply the event hash produced by your recording step.
 
 ```yaml
-- uses: hjs-spec/Agent-Blackbox@main
+- uses: hjs-spec/Agent-Blackbox@v0.3.0a5
   id: review
   with:
     event_hash: ${{ steps.record.outputs.event_hash }}
@@ -174,4 +174,4 @@ MIT
 
 ## Runtime and verification notes
 
-See [HARDENING.md](HARDENING.md) for event extensions, key handling and import compatibility.
+See [the runtime notes](https://github.com/hjs-spec/Agent-Blackbox/blob/v0.3.0a5/HARDENING.md) for event extensions, key handling and import compatibility.

@@ -1,3 +1,15 @@
+# Software 0.3.0a5
+
+- Reopen a JSONL journal after the recording process exits to review incidents,
+  inspect declared parent and child links, and verify stored Ed25519 signatures.
+  Back up the recorder's public keys with the journal. Older journals still
+  need the original public keys for verification.
+- The CLI reports distinct exit codes for missing events, unknown keys,
+  invalid records and storage errors. The GitHub Action uses the same checks
+  and fails the step when it cannot verify the requested chain.
+- Review reports include `score_basis`, the rule that produced the fixed
+  review score.
+
 # Software 0.3.0a4
 
 Simplify the installation and incident-review entry points. Describe the package
